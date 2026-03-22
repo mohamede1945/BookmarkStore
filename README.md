@@ -9,8 +9,8 @@ Modern Swift bookmarks; direct low-level `Bookmark` API plus hands-free persiste
 - Swift 6 codebase
 - direct bookmark access when you want full control
 - higher-level manager API when you just want `URL` in, `URL` out
-- built-in `UserDefaults` storage
-- custom storage backends when `UserDefaults` is not enough
+- built-in in-memory, `UserDefaults`, file, and directory storage
+- custom storage backends when the built-ins are not enough
 
 <p align="center">
     <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
@@ -67,9 +67,16 @@ Use it when you want:
 - optional stale detection
 - automatic stale refresh and write-back
 
-### `UserDefaultsBookmarkStorage`
+### Built-in storage backends
 
-Built-in async storage backend for bookmark persistence in `UserDefaults`.
+`BookmarkStore` currently ships with:
+
+- `InMemoryBookmarkStorage`
+- `UserDefaultsBookmarkStorage`
+- `FileBookmarkStorage`
+- `DirectoryBookmarkStorage`
+
+All are async and plug directly into `BookmarkManager`.
 
 ### `BookmarkStorage`
 
@@ -79,7 +86,6 @@ Use it if you want to store bookmarks in:
 
 - a database
 - SwiftData / Core Data
-- files on disk
 - cloud-backed storage
 - app-specific secure storage
 
@@ -183,7 +189,20 @@ If you do not want to pass `Bookmark` values around your app, use `BookmarkManag
 
 It lets your app work in terms of `URL` and stable keys while the storage layer keeps bookmark data for you.
 
-### `UserDefaults` storage
+### Choose a storage backend
+
+#### In-memory storage
+
+Useful for tests, previews, and ephemeral sessions.
+
+```swift
+import BookmarkStore
+
+let storage = InMemoryBookmarkStorage()
+let manager = BookmarkManager(storage: storage)
+```
+
+#### `UserDefaults` storage
 
 ```swift
 import BookmarkStore
@@ -191,6 +210,34 @@ import BookmarkStore
 let storage = UserDefaultsBookmarkStorage(
   userDefaults: .standard,
   keyPrefix: "bookmarks."
+)
+
+let manager = BookmarkManager(storage: storage)
+```
+
+#### Single-file storage
+
+Store all bookmark entries in one JSON file.
+
+```swift
+import BookmarkStore
+
+let storage = FileBookmarkStorage(
+  fileURL: URL(fileURLWithPath: "/path/to/bookmarks.json")
+)
+
+let manager = BookmarkManager(storage: storage)
+```
+
+#### Directory storage
+
+Store one JSON file per bookmark key inside a directory.
+
+```swift
+import BookmarkStore
+
+let storage = DirectoryBookmarkStorage(
+  directoryURL: URL(fileURLWithPath: "/path/to/bookmarks")
 )
 
 let manager = BookmarkManager(storage: storage)
@@ -267,7 +314,7 @@ try await manager.removeAllBookmarks()
 
 ## Custom storage backend
 
-If `UserDefaultsBookmarkStorage` is not the right fit, provide your own `BookmarkStorage`.
+If the built-in storages are not the right fit, provide your own `BookmarkStorage`.
 
 ```swift
 import BookmarkStore
