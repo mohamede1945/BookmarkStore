@@ -3,7 +3,7 @@ import Testing
 
 @testable import BookmarkStore
 
-@Suite struct UserDefaultsBookmarkStorageTests {
+@Suite struct DirectoryBookmarkStorageTests {
   @Test func bookmarkManagerRoundTrip() async throws {
     try await verifyBookmarkManagerRoundTrip(try self.makeHarness())
   }
@@ -29,13 +29,12 @@ import Testing
   }
 
   private func makeHarness() throws -> BookmarkManagerStorageHarness {
-    let suiteName = "BookmarkStoreTests.\(UUID().uuidString)"
-    let userDefaults = try #require(UserDefaults(suiteName: suiteName))
-    let storage = UserDefaultsBookmarkStorage(userDefaults: userDefaults, keyPrefix: "test.")
+    let directoryURL = try makeTemporaryDirectoryURL()
+    let storage = DirectoryBookmarkStorage(directoryURL: directoryURL)
 
     return BookmarkManagerStorageHarness(
       manager: BookmarkManager(storage: storage),
-      cleanup: { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+      cleanup: { try? FileManager.default.removeItem(at: directoryURL) }
     )
   }
 }

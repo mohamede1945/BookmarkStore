@@ -13,11 +13,11 @@ public actor UserDefaultsBookmarkStorage: BookmarkStorage {
     guard let data = self.userDefaults.data(forKey: self.storageKey(for: key)) else {
       return nil
     }
-    return try Self.decodeBookmark(from: data)
+    return try BookmarkStorageIO.decode(Bookmark.self, from: data)
   }
 
   public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws {
-    let data = try Self.encodeBookmark(bookmark)
+    let data = try BookmarkStorageIO.encode(bookmark)
 
     self.userDefaults.set(data, forKey: self.storageKey(for: key))
     var keys = self.loadKeys()
@@ -57,13 +57,5 @@ public actor UserDefaultsBookmarkStorage: BookmarkStorage {
 
   private func saveKeys(_ keys: Set<BookmarkKey>) {
     self.userDefaults.set(keys.map(\.rawValue).sorted(), forKey: self.indexKey)
-  }
-
-  private static func encodeBookmark(_ bookmark: Bookmark) throws -> Data {
-    try JSONEncoder().encode(bookmark)
-  }
-
-  private static func decodeBookmark(from data: Data) throws -> Bookmark {
-    try JSONDecoder().decode(Bookmark.self, from: data)
   }
 }
