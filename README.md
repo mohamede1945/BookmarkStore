@@ -92,7 +92,10 @@ Use it if you want to store bookmarks in:
 ## Installation
 
 ```swift
-.package(url: "https://github.com/mohamede1945/BookmarkStore.git", branch: "main")
+.package(
+  url: "https://github.com/mohamede1945/BookmarkStore.git",
+  .upToNextMinor(from: "0.1.0")
+)
 ```
 
 Then add `"BookmarkStore"` to your target dependencies and:
