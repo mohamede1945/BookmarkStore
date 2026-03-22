@@ -1,7 +1,8 @@
 import Foundation
 
 /// A stable key for a persisted bookmark entry.
-public struct BookmarkKey: RawRepresentable, Hashable, Codable, ExpressibleByStringLiteral {
+public struct BookmarkKey: RawRepresentable, Hashable, Codable, ExpressibleByStringLiteral, Sendable
+{
   public let rawValue: String
 
   public init(rawValue: String) {

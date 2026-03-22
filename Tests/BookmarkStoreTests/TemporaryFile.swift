@@ -1,5 +1,5 @@
 //
-//  XCTTemporaryFile.swift
+//  TemporaryFile.swift
 //
 //  Copyright © 2022 Darren Ford. All rights reserved.
 //
@@ -20,10 +20,9 @@
 //
 
 import Foundation
-import XCTest
 
 /// A temporary file class that removes the temporary file when it goes out of scope
-class XCTTemporaryFile: CustomDebugStringConvertible {
+final class TemporaryFile: CustomDebugStringConvertible {
 
   let fileURL: URL
 

@@ -1,130 +1,130 @@
-import XCTest
+import Foundation
+import Testing
 
 @testable import BookmarkStore
 
-final class UserDefaultsBookmarkStorageTests: XCTestCase {
-  private var manager: BookmarkManager!
-  private var userDefaults: UserDefaults!
-  private var suiteName: String!
+@Suite struct UserDefaultsBookmarkStorageTests {
+  @Test func bookmarkManagerRoundTrip() async throws {
+    let (manager, suiteName) = try self.makeManager()
+    defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+    let file = try TemporaryFile("book.txt", contents: Data("test".utf8))
 
-  override func setUpWithError() throws {
-    try super.setUpWithError()
-    self.suiteName = "BookmarkStoreTests.\(UUID().uuidString)"
-    self.userDefaults = try XCTUnwrap(UserDefaults(suiteName: self.suiteName))
-    let storage = UserDefaultsBookmarkStorage(userDefaults: self.userDefaults, keyPrefix: "test.")
-    self.manager = BookmarkManager(storage: storage)
+    try await manager.upsertBookmark(targetFileURL: file.fileURL, for: "book")
+
+    let restored = try await manager.resolvedBookmark(for: "book")
+    let keys = try await manager.bookmarkKeys()
+
+    #expect(restored?.url.standardizedFileURL == file.fileURL.standardizedFileURL)
+    #expect(restored?.isStale == false)
+    #expect(keys.map { $0.rawValue } == ["book"])
   }
 
-  override func tearDownWithError() throws {
-    if let userDefaults = self.userDefaults, let suiteName = self.suiteName {
-      userDefaults.removePersistentDomain(forName: suiteName)
-    }
-    self.manager = nil
-    self.userDefaults = nil
-    self.suiteName = nil
-    try super.tearDownWithError()
+  @Test func bookmarkManagerRemoveBookmark() async throws {
+    let (manager, suiteName) = try self.makeManager()
+    defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+    let file = try TemporaryFile("book.txt", contents: Data("test".utf8))
+
+    try await manager.upsertBookmark(targetFileURL: file.fileURL, for: "book")
+    try await manager.removeBookmark(for: "book")
+
+    let restored = try await manager.resolvedBookmark(for: "book")
+    let keys = try await manager.bookmarkKeys()
+    #expect(restored == nil)
+    #expect(keys.isEmpty)
   }
 
-  func testBookmarkManagerRoundTrip() async throws {
-    let file = try XCTTemporaryFile("book.txt", contents: Data("test".utf8))
+  @Test func bookmarkManagerRemoveAllBookmarks() async throws {
+    let (manager, suiteName) = try self.makeManager()
+    defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+    let file1 = try TemporaryFile("book1.txt", contents: Data("test1".utf8))
+    let file2 = try TemporaryFile("book2.txt", contents: Data("test2".utf8))
 
-    try await self.manager.upsertBookmark(targetFileURL: file.fileURL, for: "book")
+    try await manager.upsertBookmark(targetFileURL: file1.fileURL, for: "book1")
+    try await manager.upsertBookmark(targetFileURL: file2.fileURL, for: "book2")
 
-    let restored = try await self.manager.resolvedBookmark(for: "book")
-    let keys = try await self.manager.bookmarkKeys()
+    try await manager.removeAllBookmarks()
 
-    XCTAssertEqual(restored?.url.standardizedFileURL, file.fileURL.standardizedFileURL)
-    XCTAssertEqual(restored?.isStale, false)
-    XCTAssertEqual(keys.map(\.rawValue), ["book"])
+    let keys = try await manager.bookmarkKeys()
+    let book1 = try await manager.resolvedBookmark(for: "book1")
+    let book2 = try await manager.resolvedBookmark(for: "book2")
+    #expect(keys.isEmpty)
+    #expect(book1 == nil)
+    #expect(book2 == nil)
   }
 
-  func testBookmarkManagerRemoveBookmark() async throws {
-    let file = try XCTTemporaryFile("book.txt", contents: Data("test".utf8))
-
-    try await self.manager.upsertBookmark(targetFileURL: file.fileURL, for: "book")
-    try await self.manager.removeBookmark(for: "book")
-
-    let restored = try await self.manager.resolvedBookmark(for: "book")
-    let keys = try await self.manager.bookmarkKeys()
-    XCTAssertNil(restored)
-    XCTAssertEqual(keys, [])
-  }
-
-  func testBookmarkManagerRemoveAllBookmarks() async throws {
-    let file1 = try XCTTemporaryFile("book1.txt", contents: Data("test1".utf8))
-    let file2 = try XCTTemporaryFile("book2.txt", contents: Data("test2".utf8))
-
-    try await self.manager.upsertBookmark(targetFileURL: file1.fileURL, for: "book1")
-    try await self.manager.upsertBookmark(targetFileURL: file2.fileURL, for: "book2")
-
-    try await self.manager.removeAllBookmarks()
-
-    let keys = try await self.manager.bookmarkKeys()
-    let book1 = try await self.manager.resolvedBookmark(for: "book1")
-    let book2 = try await self.manager.resolvedBookmark(for: "book2")
-    XCTAssertEqual(keys, [])
-    XCTAssertNil(book1)
-    XCTAssertNil(book2)
-  }
-
-  func testBookmarkManagerRefreshesStaleBookmarks() async throws {
-    let originalFile = try XCTTemporaryFile("book.txt", contents: Data("test".utf8))
+  @Test func bookmarkManagerRefreshesStaleBookmarks() async throws {
+    let (manager, suiteName) = try self.makeManager()
+    defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+    let originalFile = try TemporaryFile("book.txt", contents: Data("test".utf8))
     let originalURL = originalFile.fileURL.standardizedFileURL
-    try await self.manager.upsertBookmark(targetFileURL: originalURL, for: "book")
+    try await manager.upsertBookmark(targetFileURL: originalURL, for: "book")
 
-    let movedURL = originalURL
+    let movedURL =
+      originalURL
       .deletingLastPathComponent()
       .appendingPathComponent("renamed-book.txt")
     try FileManager.default.moveItem(at: originalURL, to: movedURL)
 
-    let resolved = try await self.manager.resolvedBookmark(for: "book")
-    let stored = try await self.manager.resolvedBookmark(for: "book", refreshIfStale: false)
+    let resolved = try await manager.resolvedBookmark(for: "book")
+    let stored = try await manager.resolvedBookmark(for: "book", refreshIfStale: false)
 
-    XCTAssertEqual(resolved?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(resolved?.isStale, false)
-    XCTAssertEqual(stored?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(stored?.isStale, false)
+    #expect(resolved?.url.standardizedFileURL == movedURL)
+    #expect(resolved?.isStale == false)
+    #expect(stored?.url.standardizedFileURL == movedURL)
+    #expect(stored?.isStale == false)
   }
 
-  func testBookmarkManagerCanResolveStaleBookmarkWithoutRefreshing() async throws {
-    let originalFile = try XCTTemporaryFile("book.txt", contents: Data("test".utf8))
+  @Test func bookmarkManagerCanResolveStaleBookmarkWithoutRefreshing() async throws {
+    let (manager, suiteName) = try self.makeManager()
+    defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+    let originalFile = try TemporaryFile("book.txt", contents: Data("test".utf8))
     let originalURL = originalFile.fileURL.standardizedFileURL
-    try await self.manager.upsertBookmark(targetFileURL: originalURL, for: "book")
+    try await manager.upsertBookmark(targetFileURL: originalURL, for: "book")
 
-    let movedURL = originalURL
+    let movedURL =
+      originalURL
       .deletingLastPathComponent()
       .appendingPathComponent("renamed-book.txt")
     try FileManager.default.moveItem(at: originalURL, to: movedURL)
 
-    let firstResolved = try await self.manager.resolvedBookmark(for: "book", refreshIfStale: false)
-    let secondResolved = try await self.manager.resolvedBookmark(for: "book", refreshIfStale: false)
+    let firstResolved = try await manager.resolvedBookmark(for: "book", refreshIfStale: false)
+    let secondResolved = try await manager.resolvedBookmark(for: "book", refreshIfStale: false)
 
-    XCTAssertEqual(firstResolved?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(firstResolved?.isStale, true)
-    XCTAssertEqual(secondResolved?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(secondResolved?.isStale, true)
+    #expect(firstResolved?.url.standardizedFileURL == movedURL)
+    #expect(firstResolved?.isStale == true)
+    #expect(secondResolved?.url.standardizedFileURL == movedURL)
+    #expect(secondResolved?.isStale == true)
   }
 
-  func testBookmarkManagerCanRefreshAfterPreviousStaleReadWithoutRefresh() async throws {
-    let originalFile = try XCTTemporaryFile("book.txt", contents: Data("test".utf8))
+  @Test func bookmarkManagerCanRefreshAfterPreviousStaleReadWithoutRefresh() async throws {
+    let (manager, suiteName) = try self.makeManager()
+    defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+    let originalFile = try TemporaryFile("book.txt", contents: Data("test".utf8))
     let originalURL = originalFile.fileURL.standardizedFileURL
-    try await self.manager.upsertBookmark(targetFileURL: originalURL, for: "book")
+    try await manager.upsertBookmark(targetFileURL: originalURL, for: "book")
 
-    let movedURL = originalURL
+    let movedURL =
+      originalURL
       .deletingLastPathComponent()
       .appendingPathComponent("renamed-book.txt")
     try FileManager.default.moveItem(at: originalURL, to: movedURL)
 
-    let staleResolved = try await self.manager.resolvedBookmark(for: "book", refreshIfStale: false)
-    let refreshed = try await self.manager.resolvedBookmark(for: "book", refreshIfStale: true)
-    let persisted = try await self.manager.resolvedBookmark(for: "book", refreshIfStale: false)
+    let staleResolved = try await manager.resolvedBookmark(for: "book", refreshIfStale: false)
+    let refreshed = try await manager.resolvedBookmark(for: "book", refreshIfStale: true)
+    let persisted = try await manager.resolvedBookmark(for: "book", refreshIfStale: false)
 
-    XCTAssertEqual(staleResolved?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(staleResolved?.isStale, true)
-    XCTAssertEqual(refreshed?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(refreshed?.isStale, false)
-    XCTAssertEqual(persisted?.url.standardizedFileURL, movedURL)
-    XCTAssertEqual(persisted?.isStale, false)
+    #expect(staleResolved?.url.standardizedFileURL == movedURL)
+    #expect(staleResolved?.isStale == true)
+    #expect(refreshed?.url.standardizedFileURL == movedURL)
+    #expect(refreshed?.isStale == false)
+    #expect(persisted?.url.standardizedFileURL == movedURL)
+    #expect(persisted?.isStale == false)
   }
 
+  func makeManager() throws -> (BookmarkManager, String) {
+    let suiteName = "BookmarkStoreTests.\(UUID().uuidString)"
+    let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+    let storage = UserDefaultsBookmarkStorage(userDefaults: userDefaults, keyPrefix: "test.")
+    return (BookmarkManager(storage: storage), suiteName)
+  }
 }

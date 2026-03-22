@@ -33,9 +33,9 @@ import Foundation
 /// [Enabling Security-Scoped Bookmark and URL Access](https://developer.apple.com/documentation/professional_video_applications/fcpxml_reference/asset/media-rep/bookmark/enabling_security-scoped_bookmark_and_url_access)
 ///
 /// [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
-public struct Bookmark: Codable {
+public struct Bookmark: Codable, Sendable {
   /// Bookmark-specific errors
-  public enum BookmarkError: Error {
+  public enum BookmarkError: Error, Sendable {
     /// The URL specified was not a valid file URL
     case invalidFileURL
     /// Couldn't retrieve type identifier for the bookmark's target URL
@@ -51,7 +51,7 @@ public struct Bookmark: Codable {
   }
 
   /// The bookmark's state.
-  public enum State {
+  public enum State: Sendable {
     /// The bookmark is valid (ie. the target url is resolvable)
     case valid
     /// The bookmark needs to be rebuilt (eg. the original target file has been moved or renamed)
@@ -63,7 +63,7 @@ public struct Bookmark: Codable {
   /// [macOS only] The security scoping to apply to the bookmark.
   ///
   /// A convenience for applying security options to a bookmark
-  public enum SecurityScopeOptions {
+  public enum SecurityScopeOptions: Sendable {
     /// Apply no security scoping to the bookmark
     case none
     /// Create a security-scoped bookmark that, when resolved, provides a security-scoped URL allowing read-only
@@ -75,7 +75,7 @@ public struct Bookmark: Codable {
   }
 
   /// The bookmark's security scoping
-  public enum SecurityScope {
+  public enum SecurityScope: Sendable {
     /// Bookmark has no security scoping
     case notSecurityScoped
     /// Bookmark is security scoped
@@ -85,7 +85,7 @@ public struct Bookmark: Codable {
   }
 
   /// A snapshot of a bookmark's state and target url
-  public struct Resolved {
+  public struct Resolved: Sendable {
     /// The state of the bookmark
     public let state: Bookmark.State
     /// The target URL for the bookmark
