@@ -6,7 +6,7 @@ Modern Swift bookmarks; direct low-level `Bookmark` API plus hands-free persiste
 
 - `Bookmark` is a `struct`
 - `Bookmark` is `Sendable`
-- Swift 6.2 codebase
+- Swift 6 codebase
 - direct bookmark access when you want full control
 - higher-level manager API when you just want `URL` in, `URL` out
 - built-in `UserDefaults` storage
@@ -32,7 +32,7 @@ This repository started from [dagronf/Bookmark](https://github.com/dagronf/Bookm
 Current focus:
 
 - value-type bookmark handling
-- Swift 6.2-friendly APIs
+- Swift 6-friendly APIs
 - better concurrency ergonomics with `Sendable`
 - persistence workflows
 - macOS sandbox-friendly access
@@ -315,7 +315,7 @@ all behind a `URL`-focused API.
 
 ## Credit
 
-Originally based on Darren Ford's [dagronf/Bookmark](https://github.com/dagronf/Bookmark), now maintained here with a Swift 6.2, value-type, persistence-oriented direction.
+Originally based on Darren Ford's [dagronf/Bookmark](https://github.com/dagronf/Bookmark), now maintained here with a Swift 6, value-type, persistence-oriented direction.
 
 ## License
 
