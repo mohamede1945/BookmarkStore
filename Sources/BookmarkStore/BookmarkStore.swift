@@ -1,7 +1,7 @@
 import Foundation
 
 /// Coordinates bookmark persistence and stale-refresh behavior.
-public struct BookmarkStore {
+public struct BookmarkStore: Sendable {
   private let storageBackend: any BookmarkStorageBackend
 
   public init(storageBackend: any BookmarkStorageBackend) {

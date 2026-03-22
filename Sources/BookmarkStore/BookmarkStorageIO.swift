@@ -1,6 +1,6 @@
 import Foundation
 
-enum BookmarkStorageIO {
+enum BookmarkStorageIO: Sendable {
   static func encode<T: Encodable>(_ value: T) throws -> Data {
     try JSONEncoder().encode(value)
   }

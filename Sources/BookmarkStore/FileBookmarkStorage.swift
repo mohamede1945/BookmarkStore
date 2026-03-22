@@ -38,7 +38,7 @@ public actor FileBookmarkStorage: BookmarkStorageBackend {
       .sorted { $0.rawValue < $1.rawValue }
   }
 
-  private struct Snapshot: Codable {
+  private struct Snapshot: Codable, Sendable {
     var bookmarks: [String: Bookmark] = [:]
   }
 
