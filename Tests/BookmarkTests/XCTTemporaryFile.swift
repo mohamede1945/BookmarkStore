@@ -19,72 +19,72 @@
 //  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import XCTest
 import Foundation
+import XCTest
 
 /// A temporary file class that removes the temporary file when it goes out of scope
 class XCTTemporaryFile: CustomDebugStringConvertible {
 
-	let fileURL: URL
+  let fileURL: URL
 
-	var debugDescription: String { "\(self.fileURL)" }
+  var debugDescription: String { "\(self.fileURL)" }
 
-	init(_ filename: String, contents: Data? = nil) throws {
-		// create the temporary file url
-		let tempURL = try FileManager.default.url(
-			for: .itemReplacementDirectory,
-			in: .userDomainMask,
-			appropriateFor: URL(fileURLWithPath: NSTemporaryDirectory()),
-			create: true
-		)
-			.appendingPathComponent(filename)
+  init(_ filename: String, contents: Data? = nil) throws {
+    // create the temporary file url
+    let tempURL = try FileManager.default.url(
+      for: .itemReplacementDirectory,
+      in: .userDomainMask,
+      appropriateFor: URL(fileURLWithPath: NSTemporaryDirectory()),
+      create: true
+    )
+    .appendingPathComponent(filename)
 
-		// if contents were specified, write the file with the contents
-		if let contents = contents {
-			try contents.write(to: tempURL, options: .atomicWrite)
-		}
+    // if contents were specified, write the file with the contents
+    if let contents = contents {
+      try contents.write(to: tempURL, options: .atomicWrite)
+    }
 
-		self.fileURL = tempURL
-	}
+    self.fileURL = tempURL
+  }
 
-	init(prefix: String? = nil, fileExtension: String? = nil, contents: Data? = nil) throws {
-		var tempFilename = ""
+  init(prefix: String? = nil, fileExtension: String? = nil, contents: Data? = nil) throws {
+    var tempFilename = ""
 
-		// prefix
-		if let prefix = prefix {
-			tempFilename += prefix + "_"
-		}
+    // prefix
+    if let prefix = prefix {
+      tempFilename += prefix + "_"
+    }
 
-		// unique name
-		tempFilename += ProcessInfo.processInfo.globallyUniqueString
+    // unique name
+    tempFilename += ProcessInfo.processInfo.globallyUniqueString
 
-		// extension
-		if let fileExtension = fileExtension {
-			tempFilename += "." + fileExtension
-		}
+    // extension
+    if let fileExtension = fileExtension {
+      tempFilename += "." + fileExtension
+    }
 
-		// create the temporary file url
-		let tempURL = try FileManager.default.url(
-			for: .itemReplacementDirectory,
-			in: .userDomainMask,
-			appropriateFor: URL(fileURLWithPath: NSTemporaryDirectory()),
-			create: true
-		)
-			.appendingPathComponent(tempFilename)
+    // create the temporary file url
+    let tempURL = try FileManager.default.url(
+      for: .itemReplacementDirectory,
+      in: .userDomainMask,
+      appropriateFor: URL(fileURLWithPath: NSTemporaryDirectory()),
+      create: true
+    )
+    .appendingPathComponent(tempFilename)
 
-		// if contents were specified, write the file with the contents
-		if let contents = contents {
-			try contents.write(to: tempURL, options: .atomicWrite)
-		}
+    // if contents were specified, write the file with the contents
+    if let contents = contents {
+      try contents.write(to: tempURL, options: .atomicWrite)
+    }
 
-		self.fileURL = tempURL
-	}
+    self.fileURL = tempURL
+  }
 
-	func remove() throws {
-		try FileManager.default.removeItem(at: fileURL)
-	}
+  func remove() throws {
+    try FileManager.default.removeItem(at: fileURL)
+  }
 
-	deinit {
-		try? remove()
-	}
+  deinit {
+    try? remove()
+  }
 }

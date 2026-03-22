@@ -22,30 +22,30 @@
 import Foundation
 
 #if compiler(>=5.3)
-import UniformTypeIdentifiers
+  import UniformTypeIdentifiers
 #endif
 
-public extension Bookmark {
-	/// Returns the UTI for the bookmark's target
-	func resolvedUTIString() throws -> String {
-		let targetURL = try self.resolved().url
-		guard
-			let typeString = try targetURL.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier
-		else {
-			throw BookmarkError.cantAccessTargetUTType
-		}
-		return typeString
-	}
+extension Bookmark {
+  /// Returns the UTI for the bookmark's target
+  public func resolvedUTIString() throws -> String {
+    let targetURL = try self.resolved().url
+    guard
+      let typeString = try targetURL.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier
+    else {
+      throw BookmarkError.cantAccessTargetUTType
+    }
+    return typeString
+  }
 
-	#if compiler(>=5.3)
-	/// Returns the UTI for the bookmark's target
-	@available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-	func resolvedUTI() throws -> UTType {
-		let utiString = try self.resolvedUTIString()
-		guard let t = UTType(utiString) else {
-			throw BookmarkError.invalidTargetUTType
-		}
-		return t
-	}
-	#endif
+  #if compiler(>=5.3)
+    /// Returns the UTI for the bookmark's target
+    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+    public func resolvedUTI() throws -> UTType {
+      let utiString = try self.resolvedUTIString()
+      guard let t = UTType(utiString) else {
+        throw BookmarkError.invalidTargetUTType
+      }
+      return t
+    }
+  #endif
 }
