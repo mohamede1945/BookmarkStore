@@ -34,10 +34,6 @@ import Foundation
 ///
 /// [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
 public struct Bookmark: Codable {
-  enum CodingKeys: CodingKey {
-    case bookmarkData
-  }
-
   /// Bookmark-specific errors
   public enum BookmarkError: Error {
     /// The URL specified was not a valid file URL
@@ -205,18 +201,6 @@ public struct Bookmark: Codable {
   /// Create a bookmark by copying another bookmark
   @inlinable public init(_ bookmark: Bookmark) throws {
     try self.init(bookmarkData: bookmark.bookmarkData)
-  }
-
-  /// Create from data within a decoder
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.bookmarkData = try container.decode(Data.self, forKey: .bookmarkData)
-  }
-
-  /// Encode the bookmark data to an encoder
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(self.bookmarkData, forKey: .bookmarkData)
   }
 }
 
