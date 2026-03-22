@@ -3,16 +3,16 @@
 import PackageDescription
 
 let package = Package(
-  name: "Bookmark",
+  name: "BookmarkStore",
   products: [
-    .library(name: "Bookmark", targets: ["Bookmark"])
+    .library(name: "BookmarkStore", targets: ["BookmarkStore"])
   ],
   targets: [
     .target(
-      name: "Bookmark",
+      name: "BookmarkStore",
       dependencies: []),
     .testTarget(
-      name: "BookmarkTests",
-      dependencies: ["Bookmark"]),
+      name: "BookmarkStoreTests",
+      dependencies: ["BookmarkStore"]),
   ]
 )

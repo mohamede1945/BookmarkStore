@@ -1,9 +1,14 @@
-# Bookmark
+# BookmarkStore
 
-A Swift wrapper for URL bookmarks which allow a file to be located regardless of whether it is moved or renamed.
+Standalone Swift package for file bookmarks with persistence-friendly APIs.
+
+`BookmarkStore` keeps the package focused on two things:
+
+- reliable file-location recovery after moves/renames
+- easy persistence of bookmark data across app launches
+- macOS sandbox-friendly file access via security-scoped bookmarks
 
 <p align="center">
-    <img src="https://img.shields.io/github/v/tag/dagronf/Bookmark" />
     <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
     <a href="https://swift.org/package-manager">
         <img src="https://img.shields.io/badge/spm-compatible-brightgreen.svg?style=flat" alt="Swift Package Manager" />
@@ -16,98 +21,155 @@ A Swift wrapper for URL bookmarks which allow a file to be located regardless of
     <img src="https://img.shields.io/badge/watchOS-4+-purple" />
 </p>
 
-This class wraps Swift's URL `bookmark` functionality. See [Apple's documentation](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/AccessingFilesandDirectories/AccessingFilesandDirectories.html#//apple_ref/doc/uid/TP40010672-CH3-SW10) for further information.
+## Why this repo exists
 
-A bookmark can be stored (eg. on disk, in a database etc.) and reloaded and it will be able to locate the original target for the bookmark, even it has been moved or renamed.
+This repository is now an independent continuation of the original `dagronf/Bookmark` package.
 
-A bookmark is an opaque data structure, enclosed in a `Data` object, that describes the location of a file. Whereas path and file reference URLs are potentially fragile between launches of your app, a bookmark can usually be used to re-create a URL to a file even in cases where the file was moved or renamed.
+Current focus:
 
-Some information links :-
+- persistence-first bookmark workflows
+- cleaner app/storage integration
+- future evolution toward value-type ergonomics
 
-* [Locating Files Using Bookmarks](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/AccessingFilesandDirectories/AccessingFilesandDirectories.html#//apple_ref/doc/uid/TP40010672-CH3-SW10)
-* [Enabling Security-Scoped Bookmark and URL Access](https://developer.apple.com/documentation/professional_video_applications/fcpxml_reference/asset/media-rep/bookmark/enabling_security-scoped_bookmark_and_url_access)
-* [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
+## What it does
+
+`Bookmark` wraps Foundation URL bookmark data.
+
+A bookmark is opaque `Data` that can usually resolve the original file URL even after the file is moved or renamed. This makes it a better storage format than raw file paths for long-lived references.
+
+Useful when storing file references in:
+
+- app state
+- JSON
+- databases
+- Core Data / SwiftData payloads
+- config files
+
+On macOS, this also helps with App Sandbox workflows. Security-scoped bookmarks let sandboxed apps regain access to user-selected files and folders across launches without relying on fragile absolute paths.
+
+Apple docs:
+
+- [Locating Files Using Bookmarks](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/AccessingFilesandDirectories/AccessingFilesandDirectories.html#//apple_ref/doc/uid/TP40010672-CH3-SW10)
+- [Enabling Security-Scoped Bookmark and URL Access](https://developer.apple.com/documentation/professional_video_applications/fcpxml_reference/asset/media-rep/bookmark/enabling_security-scoped_bookmark_and_url_access)
+- [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
+
+## Features
+
+- create bookmarks from file URLs or file paths
+- resolve bookmarks and inspect `valid` / `stale` / `invalid` state
+- optional security-scoped bookmark support
+- useful for macOS App Sandbox file/folder re-access
+- `Codable` support for direct serialization
+- raw `Data` access via `bookmarkData`
+- Base64 export via `bookmarkBase64`
+- rebuild stale bookmarks
+- write bookmark data or Finder alias files
 
 ## Usage
 
-### Create and use a bookmark
+### Create and resolve
 
 ```swift
-// The original file url
-let originalURL = URL(targetFileURL: ...)!
+import BookmarkStore
 
-// Create a bookmark
+let originalURL = URL(fileURLWithPath: "/path/to/file")
+
 let bookmark = try Bookmark(targetFileURL: originalURL)
+let bookmarkFromURL = try originalURL.bookmark()
 
-// Extension on URL to generate a bookmark
-let bookmark2 = try originalURL.bookmark()
+let resolved = try bookmark.resolved()
+print(resolved.state) // .valid / .stale / .invalid
+print(resolved.url)
 
-// Access to the raw bookmark data
-let bookmarkData = bookmark.bookmarkData
+try bookmark.resolving { item in
+  print(item.url)
+}
+```
 
-// Resolve the bookmark and retrieve its state and target url
+### Persist bookmark data
+
+```swift
+import BookmarkStore
+
+let fileURL = URL(fileURLWithPath: "/path/to/file")
+let bookmark = try Bookmark(targetFileURL: fileURL)
+
+// Raw bytes for disk/database storage
+let data = bookmark.bookmarkData
+
+// String form if needed for text-based storage
+let base64 = bookmark.bookmarkBase64
+
+// Later...
+let restored = try Bookmark(bookmarkData: data)
+let restoredURL = try restored.resolved().url
+```
+
+### macOS sandboxing
+
+For sandboxed macOS apps, create a security-scoped bookmark when the user grants access, then persist it for later launches.
+
+```swift
+import BookmarkStore
+
+let bookmark = try Bookmark(
+  targetFileURL: fileURL,
+  security: .securityScopingReadWrite
+)
+
+try bookmark.resolving(options: .withSecurityScope) { item in
+  print(item.url)
+}
+```
+
+### Encode inside your models
+
+`Bookmark` conforms to `Codable`, so it can live directly inside persisted models.
+
+```swift
+import BookmarkStore
+
+struct StoredFile: Codable {
+  let id: UUID
+  let bookmark: Bookmark
+}
+
+let stored = StoredFile(
+  id: UUID(),
+  bookmark: try Bookmark(targetFileURL: URL(fileURLWithPath: "/path/to/file"))
+)
+
+let encoded = try JSONEncoder().encode(stored)
+let decoded = try JSONDecoder().decode(StoredFile.self, from: encoded)
+
+let resolvedURL = try decoded.bookmark.resolved().url
+```
+
+### Rebuild stale bookmarks
+
+When a bookmark resolves as `.stale`, rebuild and persist the new one.
+
+```swift
 let resolved = try bookmark.resolved()
 
-try bookmark.resolving { resolvedItem in
-   // Do something with the resolvedItem which is the original URL and its state
-}
-
-// ... Somewhere in here, the original url file is moved or renamed ...
-
-try bookmark.resolving { resolvedItem in
-   // Do something with the resolvedItem (which will correctly point to the new URL location)
+if resolved.state == .stale {
+  let rebuilt = try bookmark.rebuild()
+  // save rebuilt.bookmarkData
 }
 ```
 
-### Save/Load bookmark data
-
-`Bookmark` fully supports the `Codable` protocol.
+## Installation
 
 ```swift
-// The original file url
-let originalURL = URL(targetFileURL: ...)!
-
-// Create a bookmark
-let bookmark = try Bookmark(targetFileURL: originalURL)
-
-// Grab out the raw bookmark data
-let storableData = bookmark.bookmarkData
-
-// ...Save the bookmark data for later use, eg. in CoreData or in a database...
-
-// Load the bookmark data back out from the storage medium...
-let savedBookmarkData = <load bookmark data from somewhere>
-// ... and recreate the Bookmark object from the data
-let existingBookmark = try Bookmark(bookmarkData: savedBookmarkData)
-
-// Use the loaded bookmark
-try existingBookmark.resolving { resolved in
-   // ...Do something with the resolved bookmark URL
-}
+.package(url: "https://github.com/mohamede1945/BookmarkStore.git", branch: "main")
 ```
+
+Then add `"BookmarkStore"` to your target dependencies and `import BookmarkStore` in code.
+
+## Credit
+
+Originally based on Darren Ford's `Bookmark` package, now maintained here as a separate repository with a persistence-oriented direction.
 
 ## License
 
-```
-MIT License
-
-Copyright (c) 2024 Darren Ford
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+MIT.

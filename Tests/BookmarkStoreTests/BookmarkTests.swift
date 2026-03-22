@@ -21,7 +21,7 @@
 
 import XCTest
 
-@testable import Bookmark
+@testable import BookmarkStore
 
 #if compiler(>=5.3)
   import UniformTypeIdentifiers
