@@ -33,7 +33,7 @@ import Foundation
 /// [Enabling Security-Scoped Bookmark and URL Access](https://developer.apple.com/documentation/professional_video_applications/fcpxml_reference/asset/media-rep/bookmark/enabling_security-scoped_bookmark_and_url_access)
 ///
 /// [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
-public class Bookmark: Codable {
+public struct Bookmark: Codable {
   enum CodingKeys: CodingKey {
     case bookmarkData
   }
@@ -103,9 +103,6 @@ public class Bookmark: Codable {
 
   /// The raw bookmark data
   public let bookmarkData: Data
-
-  /// A base64 string representation for the bookmark data
-  public private(set) lazy var bookmarkBase64: String = self.bookmarkData.base64EncodedString()
 
   /// Returns the bookmark state. If stale, your app should create a new bookmark use it in place of any stored copies
   /// of the existing bookmark.
@@ -180,7 +177,7 @@ public class Bookmark: Codable {
   ///   - security: The security scoping to apply to the bookmark access (ignored for non-macOS platforms)
   ///   - includingResourceValuesForKeys: Resource keys to store in the bookmark
   ///   - options: Bookmark creation options
-  @inlinable public convenience init(
+  @inlinable public init(
     targetFilePath: String,
     security: SecurityScopeOptions = .none,
     includingResourceValuesForKeys keys: Set<URLResourceKey>? = nil,
@@ -206,12 +203,12 @@ public class Bookmark: Codable {
   }
 
   /// Create a bookmark by copying another bookmark
-  @inlinable public convenience init(_ bookmark: Bookmark) throws {
+  @inlinable public init(_ bookmark: Bookmark) throws {
     try self.init(bookmarkData: bookmark.bookmarkData)
   }
 
   /// Create from data within a decoder
-  public required init(from decoder: Decoder) throws {
+  public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.bookmarkData = try container.decode(Data.self, forKey: .bookmarkData)
   }

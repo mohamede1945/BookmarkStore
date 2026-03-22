@@ -61,7 +61,6 @@ Apple docs:
 - useful for macOS App Sandbox file/folder re-access
 - `Codable` support for direct serialization
 - raw `Data` access via `bookmarkData`
-- Base64 export via `bookmarkBase64`
 - rebuild stale bookmarks
 - write bookmark data or Finder alias files
 
@@ -96,9 +95,6 @@ let bookmark = try Bookmark(targetFileURL: fileURL)
 
 // Raw bytes for disk/database storage
 let data = bookmark.bookmarkData
-
-// String form if needed for text-based storage
-let base64 = bookmark.bookmarkBase64
 
 // Later...
 let restored = try Bookmark(bookmarkData: data)
