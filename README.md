@@ -1,12 +1,16 @@
 # BookmarkStore
 
-Standalone Swift package for file bookmarks with persistence-friendly APIs.
+Modern Swift bookmarks; direct low-level `Bookmark` API plus hands-free persistence with `BookmarkManager`.
 
-`BookmarkStore` keeps the package focused on two things:
+`BookmarkStore` keeps the original Foundation bookmark utility idea, then pushes it toward modern app code:
 
-- reliable file-location recovery after moves/renames
-- easy persistence of bookmark data across app launches
-- macOS sandbox-friendly file access via security-scoped bookmarks
+- `Bookmark` is a `struct`
+- `Bookmark` is `Sendable`
+- Swift 6.2 codebase
+- direct bookmark access when you want full control
+- higher-level manager API when you just want `URL` in, `URL` out
+- built-in `UserDefaults` storage
+- custom storage backends when `UserDefaults` is not enough
 
 <p align="center">
     <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
@@ -21,89 +25,144 @@ Standalone Swift package for file bookmarks with persistence-friendly APIs.
     <img src="https://img.shields.io/badge/watchOS-4+-purple" />
 </p>
 
-## Why this repo exists
+## Why this package exists
 
-This repository is now an independent continuation of the original `dagronf/Bookmark` package.
+This repository started from [dagronf/Bookmark](https://github.com/dagronf/Bookmark), then split into its own package with a different direction.
 
 Current focus:
 
-- persistence-first bookmark workflows
-- cleaner app/storage integration
-- future evolution toward value-type ergonomics
+- value-type bookmark handling
+- Swift 6.2-friendly APIs
+- better concurrency ergonomics with `Sendable`
+- persistence workflows
+- macOS sandbox-friendly access
 
-## What it does
+If you want the raw bookmark abstraction, use `Bookmark` directly.
 
-`Bookmark` wraps Foundation URL bookmark data.
+If you want storage, retrieval, and stale auto-refresh without passing bookmark data around your app, use `BookmarkManager`.
 
-A bookmark is opaque `Data` that can usually resolve the original file URL even after the file is moved or renamed. This makes it a better storage format than raw file paths for long-lived references.
+## What you get
 
-Useful when storing file references in:
+### `Bookmark`
 
-- app state
-- JSON
-- databases
-- Core Data / SwiftData payloads
-- config files
+Low-level Foundation bookmark wrapper.
 
-On macOS, this also helps with App Sandbox workflows. Security-scoped bookmarks let sandboxed apps regain access to user-selected files and folders across launches without relying on fragile absolute paths.
+Use it when you want:
 
-Apple docs:
+- raw `bookmarkData`
+- `Codable` models containing bookmarks
+- explicit `valid` / `stale` / `invalid` state inspection
+- manual stale rebuild control
+- security-scoped bookmark creation on macOS
 
-- [Locating Files Using Bookmarks](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/AccessingFilesandDirectories/AccessingFilesandDirectories.html#//apple_ref/doc/uid/TP40010672-CH3-SW10)
-- [Enabling Security-Scoped Bookmark and URL Access](https://developer.apple.com/documentation/professional_video_applications/fcpxml_reference/asset/media-rep/bookmark/enabling_security-scoped_bookmark_and_url_access)
-- [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
+### `BookmarkManager`
 
-## Features
+High-level persistence API.
 
-- create bookmarks from file URLs or file paths
-- resolve bookmarks and inspect `valid` / `stale` / `invalid` state
-- optional security-scoped bookmark support
-- useful for macOS App Sandbox file/folder re-access
-- `Codable` support for direct serialization
-- raw `Data` access via `bookmarkData`
-- rebuild stale bookmarks
-- write bookmark data or Finder alias files
+Use it when you want:
 
-## Usage
+- `URL` in, `URL` out
+- automatic bookmark creation
+- persistent storage behind a key
+- optional stale detection
+- automatic stale refresh and write-back
 
-### Create and resolve
+### `UserDefaultsBookmarkStorage`
+
+Built-in async storage backend for bookmark persistence in `UserDefaults`.
+
+### `BookmarkStorage`
+
+Public protocol for custom backends.
+
+Use it if you want to store bookmarks in:
+
+- a database
+- SwiftData / Core Data
+- files on disk
+- cloud-backed storage
+- app-specific secure storage
+
+## Installation
+
+```swift
+.package(url: "https://github.com/mohamede1945/BookmarkStore.git", branch: "main")
+```
+
+Then add `"BookmarkStore"` to your target dependencies and:
 
 ```swift
 import BookmarkStore
-
-let originalURL = URL(fileURLWithPath: "/path/to/file")
-
-let bookmark = try Bookmark(targetFileURL: originalURL)
-let bookmarkFromURL = try originalURL.bookmark()
-
-let resolved = try bookmark.resolved()
-print(resolved.state) // .valid / .stale / .invalid
-print(resolved.url)
-
-try bookmark.resolving { item in
-  print(item.url)
-}
 ```
 
-### Persist bookmark data
+## Usage
+
+### Direct `Bookmark` usage
 
 ```swift
 import BookmarkStore
 
 let fileURL = URL(fileURLWithPath: "/path/to/file")
-let bookmark = try Bookmark(targetFileURL: fileURL)
 
-// Raw bytes for disk/database storage
+let bookmark = try Bookmark(targetFileURL: fileURL)
+let bookmarkFromURL = try fileURL.bookmark()
+
+let resolved = try bookmark.resolved()
+print(resolved.state)  // .valid / .stale / .invalid
+print(resolved.url)
+```
+
+### Store bookmark data yourself
+
+```swift
+import BookmarkStore
+
+let bookmark = try Bookmark(targetFileURL: fileURL)
 let data = bookmark.bookmarkData
 
-// Later...
-let restored = try Bookmark(bookmarkData: data)
-let restoredURL = try restored.resolved().url
+// Later
+let restoredBookmark = try Bookmark(bookmarkData: data)
+let restoredURL = try restoredBookmark.resolved().url
+```
+
+### Encode bookmarks inside your models
+
+`Bookmark` is `Codable`, so it can live directly in your own persisted types.
+
+```swift
+import BookmarkStore
+
+struct StoredFile: Codable, Sendable {
+  let id: UUID
+  let bookmark: Bookmark
+}
+
+let stored = StoredFile(
+  id: UUID(),
+  bookmark: try Bookmark(targetFileURL: fileURL)
+)
+
+let data = try JSONEncoder().encode(stored)
+let decoded = try JSONDecoder().decode(StoredFile.self, from: data)
+let resolvedURL = try decoded.bookmark.resolved().url
+```
+
+### Handle stale bookmarks manually
+
+```swift
+import BookmarkStore
+
+let resolved = try bookmark.resolved()
+
+if resolved.state == .stale {
+  let rebuilt = try bookmark.rebuild()
+  // Persist rebuilt.bookmarkData
+}
 ```
 
 ### macOS sandboxing
 
-For sandboxed macOS apps, create a security-scoped bookmark when the user grants access, then persist it for later launches.
+For sandboxed macOS apps, create a security-scoped bookmark when the user grants access, then reuse it across launches.
 
 ```swift
 import BookmarkStore
@@ -113,58 +172,150 @@ let bookmark = try Bookmark(
   security: .securityScopingReadWrite
 )
 
-try bookmark.resolving(options: .withSecurityScope) { item in
-  print(item.url)
+try bookmark.resolving(options: .withSecurityScope) { resolved in
+  print(resolved.url)
 }
 ```
 
-### Encode inside your models
+## Hands-free bookmark persistence
 
-`Bookmark` conforms to `Codable`, so it can live directly inside persisted models.
+If you do not want to pass `Bookmark` values around your app, use `BookmarkManager`.
+
+It lets your app work in terms of `URL` and stable keys while the storage layer keeps bookmark data for you.
+
+### `UserDefaults` storage
 
 ```swift
 import BookmarkStore
 
-struct StoredFile: Codable {
-  let id: UUID
-  let bookmark: Bookmark
-}
-
-let stored = StoredFile(
-  id: UUID(),
-  bookmark: try Bookmark(targetFileURL: URL(fileURLWithPath: "/path/to/file"))
+let storage = UserDefaultsBookmarkStorage(
+  userDefaults: .standard,
+  keyPrefix: "bookmarks."
 )
 
-let encoded = try JSONEncoder().encode(stored)
-let decoded = try JSONDecoder().decode(StoredFile.self, from: encoded)
-
-let resolvedURL = try decoded.bookmark.resolved().url
+let manager = BookmarkManager(storage: storage)
 ```
 
-### Rebuild stale bookmarks
-
-When a bookmark resolves as `.stale`, rebuild and persist the new one.
+### Store and retrieve URLs
 
 ```swift
-let resolved = try bookmark.resolved()
+import BookmarkStore
 
-if resolved.state == .stale {
-  let rebuilt = try bookmark.rebuild()
-  // save rebuilt.bookmarkData
+try await manager.upsertBookmark(
+  targetFileURL: fileURL,
+  for: "downloads-folder"
+)
+
+if let result = try await manager.resolvedBookmark(for: "downloads-folder") {
+  print(result.url)
+  print(result.isStale)
 }
 ```
 
-## Installation
+### Auto-refresh stale bookmarks
+
+`resolvedBookmark(for:)` refreshes stale bookmarks by default, stores the rebuilt bookmark, and returns the refreshed URL.
 
 ```swift
-.package(url: "https://github.com/mohamede1945/BookmarkStore.git", branch: "main")
+import BookmarkStore
+
+if let result = try await manager.resolvedBookmark(for: "downloads-folder") {
+  print(result.url)
+  print(result.isStale)   // usually false after automatic refresh
+}
 ```
 
-Then add `"BookmarkStore"` to your target dependencies and `import BookmarkStore` in code.
+If you want to inspect stale state without refreshing:
+
+```swift
+import BookmarkStore
+
+if let result = try await manager.resolvedBookmark(
+  for: "downloads-folder",
+  refreshIfStale: false
+) {
+  print(result.url)
+  print(result.isStale)   // true if the stored bookmark is stale
+}
+```
+
+### Store security-scoped bookmarks through the manager
+
+```swift
+import BookmarkStore
+
+try await manager.upsertBookmark(
+  targetFileURL: fileURL,
+  security: .securityScopingReadWrite,
+  for: "picked-file"
+)
+
+let result = try await manager.resolvedBookmark(for: "picked-file")
+```
+
+### Manage stored entries
+
+```swift
+import BookmarkStore
+
+let exists = try await manager.containsBookmark(for: "picked-file")
+let keys = try await manager.bookmarkKeys()
+
+try await manager.removeBookmark(for: "picked-file")
+try await manager.removeAllBookmarks()
+```
+
+## Custom storage backend
+
+If `UserDefaultsBookmarkStorage` is not the right fit, provide your own `BookmarkStorage`.
+
+```swift
+import BookmarkStore
+
+struct DatabaseBookmarkStorage: BookmarkStorage {
+  func bookmark(for key: BookmarkKey) async throws -> Bookmark? {
+    fatalError("Implement database load")
+  }
+
+  func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws {
+    fatalError("Implement database save")
+  }
+
+  func removeBookmark(for key: BookmarkKey) async throws {
+    fatalError("Implement database delete")
+  }
+
+  func removeAllBookmarks() async throws {
+    fatalError("Implement delete all")
+  }
+
+  func bookmarkKeys() async throws -> [BookmarkKey] {
+    fatalError("Implement key listing")
+  }
+}
+
+let manager = BookmarkManager(storage: DatabaseBookmarkStorage())
+```
+
+This keeps app-facing code simple while letting you choose your own persistence strategy.
+
+## Summary
+
+Use `Bookmark` when you want explicit control.
+
+Use `BookmarkManager` when you want:
+
+- bookmark creation
+- persistence
+- retrieval
+- stale detection
+- stale auto-refresh
+
+all behind a `URL`-focused API.
 
 ## Credit
 
-Originally based on Darren Ford's `Bookmark` package, now maintained here as a separate repository with a persistence-oriented direction.
+Originally based on Darren Ford's [dagronf/Bookmark](https://github.com/dagronf/Bookmark), now maintained here with a Swift 6.2, value-type, persistence-oriented direction.
 
 ## License
 
