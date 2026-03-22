@@ -1,15 +1,15 @@
 import Foundation
 
 /// Coordinates bookmark persistence and stale-refresh behavior.
-public struct BookmarkManager {
-  private let storage: any BookmarkStorage
+public struct BookmarkStore {
+  private let storageBackend: any BookmarkStorageBackend
 
-  public init(storage: any BookmarkStorage) {
-    self.storage = storage
+  public init(storageBackend: any BookmarkStorageBackend) {
+    self.storageBackend = storageBackend
   }
 
   public func containsBookmark(for key: BookmarkKey) async throws -> Bool {
-    try await self.storage.containsBookmark(for: key)
+    try await self.storageBackend.containsBookmark(for: key)
   }
 
   public func upsertBookmark(
@@ -25,19 +25,19 @@ public struct BookmarkManager {
       includingResourceValuesForKeys: keys,
       options: options
     )
-    try await self.storage.setBookmark(bookmark, for: key)
+    try await self.storageBackend.setBookmark(bookmark, for: key)
   }
 
   public func removeBookmark(for key: BookmarkKey) async throws {
-    try await self.storage.removeBookmark(for: key)
+    try await self.storageBackend.removeBookmark(for: key)
   }
 
   public func removeAllBookmarks() async throws {
-    try await self.storage.removeAllBookmarks()
+    try await self.storageBackend.removeAllBookmarks()
   }
 
   public func bookmarkKeys() async throws -> [BookmarkKey] {
-    try await self.storage.bookmarkKeys()
+    try await self.storageBackend.bookmarkKeys()
   }
 
   /// Load a bookmark, resolve it, and optionally refresh stale data.
@@ -46,7 +46,7 @@ public struct BookmarkManager {
     resolutionOptions: NSURL.BookmarkResolutionOptions = [],
     refreshIfStale: Bool = true
   ) async throws -> (url: URL, isStale: Bool)? {
-    guard let bookmark = try await self.storage.bookmark(for: key) else {
+    guard let bookmark = try await self.storageBackend.bookmark(for: key) else {
       return nil
     }
 
@@ -57,7 +57,7 @@ public struct BookmarkManager {
     }
 
     let refreshedBookmark = try bookmark.rebuild()
-    try await self.storage.setBookmark(refreshedBookmark, for: key)
+    try await self.storageBackend.setBookmark(refreshedBookmark, for: key)
     let refreshedResolved = try refreshedBookmark.resolved(options: resolutionOptions)
     return (refreshedResolved.url, refreshedResolved.state == .stale)
   }

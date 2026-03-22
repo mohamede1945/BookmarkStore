@@ -1,6 +1,6 @@
 import Foundation
 
-public actor DirectoryBookmarkStorage: BookmarkStorage {
+public actor DirectoryBookmarkStorage: BookmarkStorageBackend {
   public let directoryURL: URL
 
   public init(directoryURL: URL) {

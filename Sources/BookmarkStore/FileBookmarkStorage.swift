@@ -1,6 +1,6 @@
 import Foundation
 
-public actor FileBookmarkStorage: BookmarkStorage {
+public actor FileBookmarkStorage: BookmarkStorageBackend {
   public let fileURL: URL
 
   public init(fileURL: URL) {

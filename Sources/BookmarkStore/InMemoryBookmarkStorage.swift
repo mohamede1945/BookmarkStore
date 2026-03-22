@@ -1,6 +1,6 @@
 import Foundation
 
-public actor InMemoryBookmarkStorage: BookmarkStorage {
+public actor InMemoryBookmarkStorage: BookmarkStorageBackend {
   private var bookmarks: [BookmarkKey: Bookmark] = [:]
 
   public init() {}

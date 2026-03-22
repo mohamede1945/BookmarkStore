@@ -4,36 +4,36 @@ import Testing
 @testable import BookmarkStore
 
 @Suite struct DirectoryBookmarkStorageTests {
-  @Test func bookmarkManagerRoundTrip() async throws {
-    try await verifyBookmarkManagerRoundTrip(try self.makeHarness())
+  @Test func bookmarkStoreRoundTrip() async throws {
+    try await verifyBookmarkStoreRoundTrip(try self.makeHarness())
   }
 
-  @Test func bookmarkManagerRemoveBookmark() async throws {
-    try await verifyBookmarkManagerRemoveBookmark(try self.makeHarness())
+  @Test func bookmarkStoreRemoveBookmark() async throws {
+    try await verifyBookmarkStoreRemoveBookmark(try self.makeHarness())
   }
 
-  @Test func bookmarkManagerRemoveAllBookmarks() async throws {
-    try await verifyBookmarkManagerRemoveAllBookmarks(try self.makeHarness())
+  @Test func bookmarkStoreRemoveAllBookmarks() async throws {
+    try await verifyBookmarkStoreRemoveAllBookmarks(try self.makeHarness())
   }
 
-  @Test func bookmarkManagerRefreshesStaleBookmarks() async throws {
-    try await verifyBookmarkManagerRefreshesStaleBookmarks(try self.makeHarness())
+  @Test func bookmarkStoreRefreshesStaleBookmarks() async throws {
+    try await verifyBookmarkStoreRefreshesStaleBookmarks(try self.makeHarness())
   }
 
-  @Test func bookmarkManagerCanResolveStaleBookmarkWithoutRefreshing() async throws {
-    try await verifyBookmarkManagerCanResolveStaleBookmarkWithoutRefreshing(try self.makeHarness())
+  @Test func bookmarkStoreCanResolveStaleBookmarkWithoutRefreshing() async throws {
+    try await verifyBookmarkStoreCanResolveStaleBookmarkWithoutRefreshing(try self.makeHarness())
   }
 
-  @Test func bookmarkManagerCanRefreshAfterPreviousStaleReadWithoutRefresh() async throws {
-    try await verifyBookmarkManagerCanRefreshAfterPreviousStaleReadWithoutRefresh(try self.makeHarness())
+  @Test func bookmarkStoreCanRefreshAfterPreviousStaleReadWithoutRefresh() async throws {
+    try await verifyBookmarkStoreCanRefreshAfterPreviousStaleReadWithoutRefresh(try self.makeHarness())
   }
 
-  private func makeHarness() throws -> BookmarkManagerStorageHarness {
+  private func makeHarness() throws -> BookmarkStoreHarness {
     let directoryURL = try makeTemporaryDirectoryURL()
-    let storage = DirectoryBookmarkStorage(directoryURL: directoryURL)
+    let storageBackend = DirectoryBookmarkStorage(directoryURL: directoryURL)
 
-    return BookmarkManagerStorageHarness(
-      manager: BookmarkManager(storage: storage),
+    return BookmarkStoreHarness(
+      store: BookmarkStore(storageBackend: storageBackend),
       cleanup: { try? FileManager.default.removeItem(at: directoryURL) }
     )
   }

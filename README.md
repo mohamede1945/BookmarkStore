@@ -1,6 +1,6 @@
 # BookmarkStore
 
-Modern Swift bookmarks; direct low-level `Bookmark` API plus hands-free persistence with `BookmarkManager`.
+Modern Swift bookmarks; direct low-level `Bookmark` API plus hands-free persistence with `BookmarkStore`.
 
 `BookmarkStore` keeps the original Foundation bookmark utility idea, then pushes it toward modern app code:
 
@@ -39,7 +39,7 @@ Current focus:
 
 If you want the raw bookmark abstraction, use `Bookmark` directly.
 
-If you want storage, retrieval, and stale auto-refresh without passing bookmark data around your app, use `BookmarkManager`.
+If you want storage, retrieval, and stale auto-refresh without passing bookmark data around your app, use `BookmarkStore`.
 
 ## What you get
 
@@ -55,7 +55,7 @@ Use it when you want:
 - manual stale rebuild control
 - security-scoped bookmark creation on macOS
 
-### `BookmarkManager`
+### `BookmarkStore`
 
 High-level persistence API.
 
@@ -76,9 +76,9 @@ Use it when you want:
 - `FileBookmarkStorage`
 - `DirectoryBookmarkStorage`
 
-All are async and plug directly into `BookmarkManager`.
+All are async and plug directly into `BookmarkStore`.
 
-### `BookmarkStorage`
+### `BookmarkStorageBackend`
 
 Public protocol for custom backends.
 
@@ -185,7 +185,7 @@ try bookmark.resolving(options: .withSecurityScope) { resolved in
 
 ## Hands-free bookmark persistence
 
-If you do not want to pass `Bookmark` values around your app, use `BookmarkManager`.
+If you do not want to pass `Bookmark` values around your app, use `BookmarkStore`.
 
 It lets your app work in terms of `URL` and stable keys while the storage layer keeps bookmark data for you.
 
@@ -198,8 +198,8 @@ Useful for tests, previews, and ephemeral sessions.
 ```swift
 import BookmarkStore
 
-let storage = InMemoryBookmarkStorage()
-let manager = BookmarkManager(storage: storage)
+let storageBackend = InMemoryBookmarkStorage()
+let store = BookmarkStore(storageBackend: storageBackend)
 ```
 
 #### `UserDefaults` storage
@@ -207,12 +207,12 @@ let manager = BookmarkManager(storage: storage)
 ```swift
 import BookmarkStore
 
-let storage = UserDefaultsBookmarkStorage(
+let storageBackend = UserDefaultsBookmarkStorage(
   userDefaults: .standard,
   keyPrefix: "bookmarks."
 )
 
-let manager = BookmarkManager(storage: storage)
+let store = BookmarkStore(storageBackend: storageBackend)
 ```
 
 #### Single-file storage
@@ -222,11 +222,11 @@ Store all bookmark entries in one JSON file.
 ```swift
 import BookmarkStore
 
-let storage = FileBookmarkStorage(
+let storageBackend = FileBookmarkStorage(
   fileURL: URL(fileURLWithPath: "/path/to/bookmarks.json")
 )
 
-let manager = BookmarkManager(storage: storage)
+let store = BookmarkStore(storageBackend: storageBackend)
 ```
 
 #### Directory storage
@@ -236,11 +236,11 @@ Store one JSON file per bookmark key inside a directory.
 ```swift
 import BookmarkStore
 
-let storage = DirectoryBookmarkStorage(
+let storageBackend = DirectoryBookmarkStorage(
   directoryURL: URL(fileURLWithPath: "/path/to/bookmarks")
 )
 
-let manager = BookmarkManager(storage: storage)
+let store = BookmarkStore(storageBackend: storageBackend)
 ```
 
 ### Store and retrieve URLs
@@ -248,12 +248,12 @@ let manager = BookmarkManager(storage: storage)
 ```swift
 import BookmarkStore
 
-try await manager.upsertBookmark(
+try await store.upsertBookmark(
   targetFileURL: fileURL,
   for: "downloads-folder"
 )
 
-if let result = try await manager.resolvedBookmark(for: "downloads-folder") {
+if let result = try await store.resolvedBookmark(for: "downloads-folder") {
   print(result.url)
   print(result.isStale)
 }
@@ -266,7 +266,7 @@ if let result = try await manager.resolvedBookmark(for: "downloads-folder") {
 ```swift
 import BookmarkStore
 
-if let result = try await manager.resolvedBookmark(for: "downloads-folder") {
+if let result = try await store.resolvedBookmark(for: "downloads-folder") {
   print(result.url)
   print(result.isStale)   // usually false after automatic refresh
 }
@@ -277,7 +277,7 @@ If you want to inspect stale state without refreshing:
 ```swift
 import BookmarkStore
 
-if let result = try await manager.resolvedBookmark(
+if let result = try await store.resolvedBookmark(
   for: "downloads-folder",
   refreshIfStale: false
 ) {
@@ -291,13 +291,13 @@ if let result = try await manager.resolvedBookmark(
 ```swift
 import BookmarkStore
 
-try await manager.upsertBookmark(
+try await store.upsertBookmark(
   targetFileURL: fileURL,
   security: .securityScopingReadWrite,
   for: "picked-file"
 )
 
-let result = try await manager.resolvedBookmark(for: "picked-file")
+let result = try await store.resolvedBookmark(for: "picked-file")
 ```
 
 ### Manage stored entries
@@ -305,21 +305,21 @@ let result = try await manager.resolvedBookmark(for: "picked-file")
 ```swift
 import BookmarkStore
 
-let exists = try await manager.containsBookmark(for: "picked-file")
-let keys = try await manager.bookmarkKeys()
+let exists = try await store.containsBookmark(for: "picked-file")
+let keys = try await store.bookmarkKeys()
 
-try await manager.removeBookmark(for: "picked-file")
-try await manager.removeAllBookmarks()
+try await store.removeBookmark(for: "picked-file")
+try await store.removeAllBookmarks()
 ```
 
 ## Custom storage backend
 
-If the built-in storages are not the right fit, provide your own `BookmarkStorage`.
+If the built-in storages are not the right fit, provide your own `BookmarkStorageBackend`.
 
 ```swift
 import BookmarkStore
 
-struct DatabaseBookmarkStorage: BookmarkStorage {
+struct DatabaseBookmarkStorage: BookmarkStorageBackend {
   func bookmark(for key: BookmarkKey) async throws -> Bookmark? {
     fatalError("Implement database load")
   }
@@ -341,7 +341,7 @@ struct DatabaseBookmarkStorage: BookmarkStorage {
   }
 }
 
-let manager = BookmarkManager(storage: DatabaseBookmarkStorage())
+let store = BookmarkStore(storageBackend: DatabaseBookmarkStorage())
 ```
 
 This keeps app-facing code simple while letting you choose your own persistence strategy.
@@ -350,7 +350,7 @@ This keeps app-facing code simple while letting you choose your own persistence 
 
 Use `Bookmark` when you want explicit control.
 
-Use `BookmarkManager` when you want:
+Use `BookmarkStore` when you want:
 
 - bookmark creation
 - persistence

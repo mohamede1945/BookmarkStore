@@ -1,6 +1,6 @@
 import Foundation
 
-public actor UserDefaultsBookmarkStorage: BookmarkStorage {
+public actor UserDefaultsBookmarkStorage: BookmarkStorageBackend {
   public let userDefaults: UserDefaults
   public let keyPrefix: String
 
