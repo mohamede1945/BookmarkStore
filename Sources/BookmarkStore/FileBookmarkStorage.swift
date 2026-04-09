@@ -7,31 +7,31 @@ public actor FileBookmarkStorage: BookmarkStorageBackend {
     self.fileURL = fileURL
   }
 
-  public func bookmark(for key: BookmarkKey) async throws -> Bookmark? {
+  public func bookmark(for key: BookmarkKey) async throws(BookmarkStorageError) -> Bookmark? {
     let snapshot = try self.loadSnapshot()
     return snapshot.bookmarks[key.rawValue]
   }
 
-  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws {
+  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws(BookmarkStorageError) {
     var snapshot = try self.loadSnapshot()
     snapshot.bookmarks[key.rawValue] = bookmark
     try self.saveSnapshot(snapshot)
   }
 
-  public func removeBookmark(for key: BookmarkKey) async throws {
+  public func removeBookmark(for key: BookmarkKey) async throws(BookmarkStorageError) {
     var snapshot = try self.loadSnapshot()
     snapshot.bookmarks.removeValue(forKey: key.rawValue)
     try self.saveSnapshot(snapshot)
   }
 
-  public func removeAllBookmarks() async throws {
+  public func removeAllBookmarks() async throws(BookmarkStorageError) {
     guard FileManager.default.fileExists(atPath: self.fileURL.path) else {
       return
     }
-    try FileManager.default.removeItem(at: self.fileURL)
+    try BookmarkStorageIO.removeItem(at: self.fileURL)
   }
 
-  public func bookmarkKeys() async throws -> [BookmarkKey] {
+  public func bookmarkKeys() async throws(BookmarkStorageError) -> [BookmarkKey] {
     let snapshot = try self.loadSnapshot()
     return snapshot.bookmarks.keys
       .map(BookmarkKey.init(rawValue:))
@@ -42,19 +42,19 @@ public actor FileBookmarkStorage: BookmarkStorageBackend {
     var bookmarks: [String: Bookmark] = [:]
   }
 
-  private func loadSnapshot() throws -> Snapshot {
+  private func loadSnapshot() throws(BookmarkStorageError) -> Snapshot {
     guard FileManager.default.fileExists(atPath: self.fileURL.path) else {
       return Snapshot()
     }
 
-    let data = try Data(contentsOf: self.fileURL)
+    let data = try BookmarkStorageIO.read(from: self.fileURL)
     return try BookmarkStorageIO.decode(Snapshot.self, from: data)
   }
 
-  private func saveSnapshot(_ snapshot: Snapshot) throws {
+  private func saveSnapshot(_ snapshot: Snapshot) throws(BookmarkStorageError) {
     guard snapshot.bookmarks.isEmpty == false else {
       if FileManager.default.fileExists(atPath: self.fileURL.path) {
-        try FileManager.default.removeItem(at: self.fileURL)
+        try BookmarkStorageIO.removeItem(at: self.fileURL)
       }
       return
     }

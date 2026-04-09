@@ -23,7 +23,6 @@ import Foundation
 
 /// A temporary file class that removes the temporary file when it goes out of scope
 final class TemporaryFile: CustomDebugStringConvertible {
-
   let fileURL: URL
 
   var debugDescription: String { "\(self.fileURL)" }

@@ -27,20 +27,28 @@ import Foundation
 
 extension Bookmark {
   /// Returns the UTI for the bookmark's target
-  public func resolvedUTIString() throws -> String {
+  public func resolvedUTIString() throws(BookmarkError) -> String {
     let targetURL = try self.resolved().url
-    guard
-      let typeString = try targetURL.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier
-    else {
-      throw BookmarkError.cantAccessTargetUTType
+    do {
+      guard
+        let typeString = try targetURL.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier
+      else {
+        throw BookmarkError.cantAccessTargetUTType
+      }
+      return typeString
     }
-    return typeString
+    catch let error as BookmarkError {
+      throw error
+    }
+    catch {
+      throw .failedToAccessResourceValues
+    }
   }
 
   #if compiler(>=5.3)
     /// Returns the UTI for the bookmark's target
     @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    public func resolvedUTI() throws -> UTType {
+    public func resolvedUTI() throws(BookmarkError) -> UTType {
       let utiString = try self.resolvedUTIString()
       guard let t = UTType(utiString) else {
         throw BookmarkError.invalidTargetUTType

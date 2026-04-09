@@ -5,23 +5,23 @@ public actor InMemoryBookmarkStorage: BookmarkStorageBackend {
 
   public init() {}
 
-  public func bookmark(for key: BookmarkKey) async throws -> Bookmark? {
+  public func bookmark(for key: BookmarkKey) async throws(BookmarkStorageError) -> Bookmark? {
     self.bookmarks[key]
   }
 
-  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws {
+  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws(BookmarkStorageError) {
     self.bookmarks[key] = bookmark
   }
 
-  public func removeBookmark(for key: BookmarkKey) async throws {
+  public func removeBookmark(for key: BookmarkKey) async throws(BookmarkStorageError) {
     self.bookmarks.removeValue(forKey: key)
   }
 
-  public func removeAllBookmarks() async throws {
+  public func removeAllBookmarks() async throws(BookmarkStorageError) {
     self.bookmarks.removeAll()
   }
 
-  public func bookmarkKeys() async throws -> [BookmarkKey] {
+  public func bookmarkKeys() async throws(BookmarkStorageError) -> [BookmarkKey] {
     self.bookmarks.keys.sorted { $0.rawValue < $1.rawValue }
   }
 }

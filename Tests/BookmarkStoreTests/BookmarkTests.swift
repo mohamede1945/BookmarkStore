@@ -87,8 +87,15 @@ import Testing
 
     // The bookmark should now be invalid
     #expect(originalBookmark.state == .invalid)
-    #expect(throws: (any Error).self) {
-      try originalBookmark.resolved()
+    do {
+      _ = try originalBookmark.resolved()
+      Issue.record("Expected resolution failure for deleted bookmark")
+    }
+    catch let error {
+      guard case .failedToResolveBookmarkData = error else {
+        Issue.record("Unexpected error: \(error)")
+        return
+      }
     }
   }
 
@@ -195,9 +202,16 @@ import Testing
     try FileManager.default.removeItem(at: url)
 
     // A usingTargetURL() call will throw if the bookmark can no longer be resolved
-    #expect(throws: (any Error).self) {
-      try bookmark.resolving { bookmark in
-        assert(false)
+    do {
+      try bookmark.resolving { _ in
+        assertionFailure("unexpected resolution")
+      }
+      Issue.record("Expected resolution failure for deleted bookmark")
+    }
+    catch let error {
+      guard case .failedToResolveBookmarkData = error else {
+        Issue.record("Unexpected error: \(error)")
+        return
       }
     }
 

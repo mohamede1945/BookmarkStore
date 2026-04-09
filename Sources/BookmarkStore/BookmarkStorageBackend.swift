@@ -16,15 +16,15 @@ public struct BookmarkKey: RawRepresentable, Hashable, Codable, ExpressibleByStr
 
 /// Storage surface for bookmark persistence backends.
 public protocol BookmarkStorageBackend: Sendable {
-  func bookmark(for key: BookmarkKey) async throws -> Bookmark?
-  func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws
-  func removeBookmark(for key: BookmarkKey) async throws
-  func removeAllBookmarks() async throws
-  func bookmarkKeys() async throws -> [BookmarkKey]
+  func bookmark(for key: BookmarkKey) async throws(BookmarkStorageError) -> Bookmark?
+  func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws(BookmarkStorageError)
+  func removeBookmark(for key: BookmarkKey) async throws(BookmarkStorageError)
+  func removeAllBookmarks() async throws(BookmarkStorageError)
+  func bookmarkKeys() async throws(BookmarkStorageError) -> [BookmarkKey]
 }
 
 extension BookmarkStorageBackend {
-  public func containsBookmark(for key: BookmarkKey) async throws -> Bool {
+  public func containsBookmark(for key: BookmarkKey) async throws(BookmarkStorageError) -> Bool {
     try await self.bookmark(for: key) != nil
   }
 }

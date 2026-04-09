@@ -35,7 +35,7 @@ import Foundation
 /// [Bookmarks and Security Scope](https://developer.apple.com/documentation/foundation/nsurl#1663783)
 public struct Bookmark: Codable, Sendable {
   /// Bookmark-specific errors
-  public enum BookmarkError: Error, Sendable {
+  public enum BookmarkError: Error, Sendable, Equatable {
     /// The URL specified was not a valid file URL
     case invalidFileURL
     /// Couldn't retrieve type identifier for the bookmark's target URL
@@ -48,6 +48,16 @@ public struct Bookmark: Codable, Sendable {
     case bookmarkIsStaleNeedsRebuild
     /// Attempt to resolve the bookmark, but it is invalid
     case bookmarkIsInvalid
+    /// Bookmark data creation failed.
+    case failedToCreateBookmarkData
+    /// Bookmark data resolution failed.
+    case failedToResolveBookmarkData
+    /// Resource value lookup failed.
+    case failedToAccessResourceValues
+    /// Writing bookmark data failed.
+    case failedToWriteBookmarkData
+    /// Writing alias-file bookmark data failed.
+    case failedToWriteAliasFile
   }
 
   /// The bookmark's state.
@@ -142,7 +152,7 @@ public struct Bookmark: Codable, Sendable {
     security: SecurityScopeOptions = .none,
     includingResourceValuesForKeys keys: Set<URLResourceKey>? = nil,
     options: URL.BookmarkCreationOptions = []
-  ) throws {
+  ) throws(BookmarkError) {
     guard targetFileURL.isFileURL else {
       throw BookmarkError.invalidFileURL
     }
@@ -160,11 +170,16 @@ public struct Bookmark: Codable, Sendable {
       }
     #endif
 
-    self.bookmarkData = try targetFileURL.bookmarkData(
-      options: options,
-      includingResourceValuesForKeys: keys,
-      relativeTo: nil
-    )
+    do {
+      self.bookmarkData = try targetFileURL.bookmarkData(
+        options: options,
+        includingResourceValuesForKeys: keys,
+        relativeTo: nil
+      )
+    }
+    catch {
+      throw .failedToCreateBookmarkData
+    }
   }
 
   /// Create a bookmark object from a target file path
@@ -178,7 +193,7 @@ public struct Bookmark: Codable, Sendable {
     security: SecurityScopeOptions = .none,
     includingResourceValuesForKeys keys: Set<URLResourceKey>? = nil,
     options: URL.BookmarkCreationOptions = []
-  ) throws {
+  ) throws(BookmarkError) {
     try self.init(
       targetFileURL: URL(fileURLWithPath: targetFilePath),
       security: security,
@@ -190,16 +205,21 @@ public struct Bookmark: Codable, Sendable {
   /// Create a bookmark object from raw bookmark data
   /// - Parameter bookmarkData: The bookmark data
   /// - Parameter validate: Validate the bookmark data is valid and the target url is resolvable.
-  public init(bookmarkData: Data, validate: Bool = false) throws {
+  public init(bookmarkData: Data, validate: Bool = false) throws(BookmarkError) {
     if validate {
-      var isStale = false
-      let _ = try URL(resolvingBookmarkData: bookmarkData, bookmarkDataIsStale: &isStale)
+      do {
+        var isStale = false
+        let _ = try URL(resolvingBookmarkData: bookmarkData, bookmarkDataIsStale: &isStale)
+      }
+      catch {
+        throw .failedToResolveBookmarkData
+      }
     }
     self.bookmarkData = bookmarkData
   }
 
   /// Create a bookmark by copying another bookmark
-  @inlinable public init(_ bookmark: Bookmark) throws {
+  @inlinable public init(_ bookmark: Bookmark) throws(BookmarkError) {
     try self.init(bookmarkData: bookmark.bookmarkData)
   }
 }
@@ -230,11 +250,16 @@ extension Bookmark {
   /// If the bookmark is created with the `securityScoped` option,
   public func resolved(
     options: NSURL.BookmarkResolutionOptions = []
-  ) throws -> Resolved {
-    var isStale = false
-    let url = try URL(
-      resolvingBookmarkData: self.bookmarkData, options: options, bookmarkDataIsStale: &isStale)
-    return Resolved(result: isStale ? .stale : .valid, url: url)
+  ) throws(BookmarkError) -> Resolved {
+    do {
+      var isStale = false
+      let url = try URL(
+        resolvingBookmarkData: self.bookmarkData, options: options, bookmarkDataIsStale: &isStale)
+      return Resolved(result: isStale ? .stale : .valid, url: url)
+    }
+    catch {
+      throw .failedToResolveBookmarkData
+    }
   }
 
   /// Access the bookmark's target url in a block scope
@@ -247,7 +272,7 @@ extension Bookmark {
   public func resolving<ReturnType>(
     options: NSURL.BookmarkResolutionOptions = [],
     _ scopedBlock: (Resolved) -> ReturnType
-  ) throws -> ReturnType {
+  ) throws(BookmarkError) -> ReturnType {
     let resolvedBookmark = try self.resolved(options: options)
     if resolvedBookmark.state == .invalid {
       // If the bookmark is invalid, throw
@@ -298,7 +323,7 @@ extension Bookmark {
   @inlinable public func writeBookmarkData(
     to fileURL: URL,
     options: Data.WritingOptions = []
-  ) throws {
+  ) throws(BookmarkError) {
     assert(fileURL.isFileURL)
 
     let targetURL = try self.resolved()
@@ -307,7 +332,12 @@ extension Bookmark {
       throw BookmarkError.bookmarkIsStaleNeedsRebuild
     }
 
-    try self.bookmarkData.write(to: fileURL, options: options)
+    do {
+      try self.bookmarkData.write(to: fileURL, options: options)
+    }
+    catch {
+      throw .failedToWriteBookmarkData
+    }
   }
 
   /// Create an alias file.
@@ -319,7 +349,7 @@ extension Bookmark {
   public func writeAliasFile(
     to aliasFileUrl: URL,
     options: URL.BookmarkCreationOptions
-  ) throws {
+  ) throws(BookmarkError) {
     assert(aliasFileUrl.isFileURL)
 
     // Grab out the url for the bookmark
@@ -339,13 +369,18 @@ extension Bookmark {
       options: options
     )
 
-    try URL.writeBookmarkData(bookmark.bookmarkData, to: aliasFileUrl)
+    do {
+      try URL.writeBookmarkData(bookmark.bookmarkData, to: aliasFileUrl)
+    }
+    catch {
+      throw .failedToWriteAliasFile
+    }
   }
 }
 
 extension Bookmark {
   /// Make a copy of this bookmark
-  @inlinable public func copy() throws -> Bookmark {
+  @inlinable public func copy() throws(BookmarkError) -> Bookmark {
     return try Bookmark(bookmarkData: self.bookmarkData)
   }
 
@@ -359,7 +394,7 @@ extension Bookmark {
   @inlinable public func rebuild(
     includingResourceValuesForKeys keys: Set<URLResourceKey>? = nil,
     options: URL.BookmarkCreationOptions = []
-  ) throws -> Bookmark {
+  ) throws(BookmarkError) -> Bookmark {
     let url = try self.resolved().url
     return try Bookmark(targetFileURL: url, includingResourceValuesForKeys: keys, options: options)
   }

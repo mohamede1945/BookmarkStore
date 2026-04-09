@@ -9,14 +9,14 @@ public actor UserDefaultsBookmarkStorage: BookmarkStorageBackend {
     self.keyPrefix = keyPrefix
   }
 
-  public func bookmark(for key: BookmarkKey) async throws -> Bookmark? {
+  public func bookmark(for key: BookmarkKey) async throws(BookmarkStorageError) -> Bookmark? {
     guard let data = self.userDefaults.data(forKey: self.storageKey(for: key)) else {
       return nil
     }
     return try BookmarkStorageIO.decode(Bookmark.self, from: data)
   }
 
-  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws {
+  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws(BookmarkStorageError) {
     let data = try BookmarkStorageIO.encode(bookmark)
 
     self.userDefaults.set(data, forKey: self.storageKey(for: key))
@@ -25,14 +25,14 @@ public actor UserDefaultsBookmarkStorage: BookmarkStorageBackend {
     self.saveKeys(keys)
   }
 
-  public func removeBookmark(for key: BookmarkKey) async throws {
+  public func removeBookmark(for key: BookmarkKey) async throws(BookmarkStorageError) {
     self.userDefaults.removeObject(forKey: self.storageKey(for: key))
     var keys = self.loadKeys()
     keys.remove(key)
     self.saveKeys(keys)
   }
 
-  public func removeAllBookmarks() async throws {
+  public func removeAllBookmarks() async throws(BookmarkStorageError) {
     let keys = self.loadKeys()
     for key in keys {
       self.userDefaults.removeObject(forKey: self.storageKey(for: key))
@@ -40,7 +40,7 @@ public actor UserDefaultsBookmarkStorage: BookmarkStorageBackend {
     self.userDefaults.removeObject(forKey: self.indexKey)
   }
 
-  public func bookmarkKeys() async throws -> [BookmarkKey] {
+  public func bookmarkKeys() async throws(BookmarkStorageError) -> [BookmarkKey] {
     return self.loadKeys().sorted { $0.rawValue < $1.rawValue }
   }
 

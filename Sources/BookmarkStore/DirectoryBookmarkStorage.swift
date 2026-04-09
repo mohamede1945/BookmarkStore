@@ -7,43 +7,42 @@ public actor DirectoryBookmarkStorage: BookmarkStorageBackend {
     self.directoryURL = directoryURL
   }
 
-  public func bookmark(for key: BookmarkKey) async throws -> Bookmark? {
+  public func bookmark(for key: BookmarkKey) async throws(BookmarkStorageError) -> Bookmark? {
     let fileURL = self.fileURL(for: key)
     guard FileManager.default.fileExists(atPath: fileURL.path) else {
       return nil
     }
 
-    let data = try Data(contentsOf: fileURL)
+    let data = try BookmarkStorageIO.read(from: fileURL)
     return try BookmarkStorageIO.decode(Bookmark.self, from: data)
   }
 
-  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws {
+  public func setBookmark(_ bookmark: Bookmark, for key: BookmarkKey) async throws(BookmarkStorageError) {
     let data = try BookmarkStorageIO.encode(bookmark)
     try BookmarkStorageIO.write(data, to: self.fileURL(for: key))
   }
 
-  public func removeBookmark(for key: BookmarkKey) async throws {
+  public func removeBookmark(for key: BookmarkKey) async throws(BookmarkStorageError) {
     let fileURL = self.fileURL(for: key)
     guard FileManager.default.fileExists(atPath: fileURL.path) else {
       return
     }
-    try FileManager.default.removeItem(at: fileURL)
+    try BookmarkStorageIO.removeItem(at: fileURL)
   }
 
-  public func removeAllBookmarks() async throws {
+  public func removeAllBookmarks() async throws(BookmarkStorageError) {
     guard FileManager.default.fileExists(atPath: self.directoryURL.path) else {
       return
     }
-    try FileManager.default.removeItem(at: self.directoryURL)
+    try BookmarkStorageIO.removeItem(at: self.directoryURL)
   }
 
-  public func bookmarkKeys() async throws -> [BookmarkKey] {
+  public func bookmarkKeys() async throws(BookmarkStorageError) -> [BookmarkKey] {
     guard FileManager.default.fileExists(atPath: self.directoryURL.path) else {
       return []
     }
 
-    return try FileManager.default
-      .contentsOfDirectory(at: self.directoryURL, includingPropertiesForKeys: nil)
+    return try BookmarkStorageIO.contentsOfDirectory(at: self.directoryURL)
       .compactMap(Self.key(from:))
       .sorted { $0.rawValue < $1.rawValue }
   }

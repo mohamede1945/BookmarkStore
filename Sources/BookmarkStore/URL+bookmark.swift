@@ -27,7 +27,7 @@ extension URL {
   /// Return a new bookmark object for this fileURL
   /// - Parameters:
   ///   - options: Bookmark creation options
-  public func bookmark(options: URL.BookmarkCreationOptions = []) throws -> Bookmark {
+  public func bookmark(options: URL.BookmarkCreationOptions = []) throws(Bookmark.BookmarkError) -> Bookmark {
     try Bookmark(targetFileURL: self, options: options)
   }
 }
@@ -41,7 +41,7 @@ extension URL {
   public func bookmark(
     includingResourceValuesForKeys keys: Set<URLResourceKey>,
     options: URL.BookmarkCreationOptions = []
-  ) throws -> Bookmark {
+  ) throws(Bookmark.BookmarkError) -> Bookmark {
     try Bookmark(targetFileURL: self, includingResourceValuesForKeys: keys, options: options)
   }
 }
