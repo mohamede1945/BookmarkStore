@@ -19,10 +19,10 @@ Modern Swift bookmarks; direct low-level `Bookmark` API plus hands-free persiste
     </a>
 </p>
 <p align="center">
-    <img src="https://img.shields.io/badge/macOS-10.11+-red" />
-    <img src="https://img.shields.io/badge/iOS-11+-blue" />
-    <img src="https://img.shields.io/badge/tvOS-11+-orange" />
-    <img src="https://img.shields.io/badge/watchOS-4+-purple" />
+    <img src="https://img.shields.io/badge/macOS-10.15+-red" />
+    <img src="https://img.shields.io/badge/iOS-13+-blue" />
+    <img src="https://img.shields.io/badge/tvOS-13+-orange" />
+    <img src="https://img.shields.io/badge/watchOS-6+-purple" />
 </p>
 
 ## Why this package exists
@@ -94,7 +94,7 @@ Use it if you want to store bookmarks in:
 ```swift
 .package(
   url: "https://github.com/mohamede1945/BookmarkStore.git",
-  .upToNextMinor(from: "0.1.0")
+  .upToNextMinor(from: "0.2.1")
 )
 ```
 
